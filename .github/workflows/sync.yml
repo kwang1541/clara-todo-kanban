@@ -1,0 +1,17 @@
+name: Hourly Clara Sync
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger /api/sync
+        run: |
+          code=$(curl -s -o out.json -w "%{http_code}" -X POST "${{ secrets.APP_URL }}/api/sync" \
+            -H "x-board-key: ${{ secrets.BOARD_KEY }}" -H "Content-Type: application/json" \
+            -d '{"trigger":"schedule"}')
+          echo "HTTP $code"
+          node -e "const b=require('./out.json');console.log('lastSync',b.lastSync,'count',b.lastSyncCount,'error',b.lastError&&b.lastError.message)"
+          test "$code" = "200"

@@ -1,15 +1,18 @@
-import { COLUMNS, loadBoard, saveBoard, syncBoard } from '../../lib/board.mjs';
+import { COLUMNS, loadBoard, saveBoard, syncBoard } from '../lib/board.mjs';
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 
-export default async (req) => {
+async function handle(req) {
   const need = process.env.BOARD_KEY;
   if (!need || req.headers.get('x-board-key') !== need) return json({ error: 'unauthorized' }, 401);
   const route = new URL(req.url).pathname.replace(/^\/api\/?/, '');
   const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
 
   if (req.method === 'GET' && route === 'board') return json(await loadBoard());
-  if (req.method === 'POST' && route === 'sync') return json(await syncBoard('manual'));
+  if (req.method === 'POST' && route === 'sync') {
+    const b = await syncBoard(body.trigger === 'schedule' ? 'schedule' : 'manual');
+    return json(b, b.lastError ? 502 : 200);
+  }
 
   const b = await loadBoard();
   const now = new Date().toISOString();
@@ -34,6 +37,8 @@ export default async (req) => {
     return json(await saveBoard(b));
   }
   return json({ error: 'not found' }, 404);
-};
+}
 
-export const config = { path: '/api/*' };
+export const GET = handle;
+export const POST = handle;
+export const config = { maxDuration: 60 };
