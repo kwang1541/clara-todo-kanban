@@ -10,7 +10,7 @@
 | `public/index.html`, `app.js`, `app.css` | 칸반 화면 (CSP 때문에 인라인 스크립트·스타일 없음) |
 | `api/[action].mjs` | `GET /api/board`, `POST /api/sync·move·add·edit·hide(delete)·restore·purge`, 헤더 `x-board-key` = `BOARD_KEY` (상수시간 비교, 실패 시 0.8초 지연) |
 | `lib/model.mjs` | 도메인 로직(순수 함수): 동기화 병합·키 규칙·이관·숨김/보관·편집 |
-| `lib/board.mjs` | 저장소: Vercel Blob 고정 경로 1파일, AES-256-GCM, ETag 조건부 쓰기 |
+| `lib/board.mjs` | 저장소: Vercel Blob — 버전마다 새 파일 + 고정 포인터(head 메타데이터로 최신 버전 확인), AES-256-GCM, 포인터 ETag 조건부 쓰기 |
 | `lib/clara.mjs` | 클라라 MCP 클라이언트, 할일 추출(최근 60일·@멘션·본인 작성 제외·문서 단위 중복 제거) |
 | `test/` | `node --test` 단위테스트 (메모리 Blob 으로 저장·동시성 검증) |
 
@@ -19,7 +19,8 @@
 - **열**: `todo · doing · done` + `hidden`(숨김함, 원래 열로 복원) + `archived`(Done 30일 경과 자동 보관)
 - **사용자 입력**(우선순위·마감일·메모)은 `local` 에 저장 → 클라라 동기화가 덮어쓰지 않음
 - **영구삭제**한 클라라 카드는 `purged` 에 기록해 다시 만들지 않음 (최근 500건)
-- **동시 쓰기**: 모든 변경은 `mutate()` — 최신 보드+ETag 읽기 → 변경 → `put(ifMatch)`, 충돌 시 최신 보드로 재적용(최대 5회). 동기화는 클라라 조회를 먼저 끝낸 뒤 저장 직전에 병합
+- **동시 쓰기**: 모든 변경은 `mutate()` — head(포인터)로 최신 버전+ETag 확인 → 버전 파일 읽기 → 변경 → 새 버전 파일 put → 포인터 `put(ifMatch)`. 충돌 시 새 파일 삭제 후 최신 보드로 재적용(최대 5회). 동기화는 클라라 조회를 먼저 끝낸 뒤 저장 직전에 병합
+- **왜 고정 경로 1파일이 아닌가**: Blob 공개 URL 은 CDN 이 최소 60초 캐시하고 쿼리스트링·`get(useCache:false)` 로도 최신을 보장하지 못함(2026-10-29 실측). 처음 보는 URL(새 버전 파일)과 head 메타데이터만 항상 최신
 - v1(제목 키·타임스탬프 파일) 보드는 첫 접근 시 자동 이관. 옛 파일은 롤백용으로 남겨 둠
 
 ## 운영 한도 (Vercel Hobby, Blob)
@@ -27,11 +28,10 @@ Hobby 는 한도 초과 시 Blob 이 30일간 막힌다. Advanced Operations(업
 
 | 동작 | 호출 | 월 예상 |
 |---|---|---|
-| 정기 동기화 (KST 07~22시 매시 16회/일) | get 1 + put 1 | Advanced 480 · Simple 480 |
-| 카드 조작 (하루 10회 가정) | get 1 + put 1 | Advanced 300 · Simple 300 |
-| 화면 재조회 (탭 표시 중 5분마다, 8시간×22일) | get 1 | Simple ~2,100 |
-| **합계** | | **Advanced ~780 · Simple ~2,900** |
-
+| 정기 동기화 (KST 07~22시 매시 16회/일) | head 1 + 다운로드 1, 변경 있거나 2시간마다만 저장(put 2) | Advanced ~480 · Simple ~960 |
+| 카드 조작 (하루 10회 가정) | head 1 + 다운로드 1 + put 2 | Advanced ~600 · Simple ~600 |
+| 화면 재조회 (탭 표시 중 5분마다, 8시간×22일) | head 1 (같은 버전 다운로드는 캐시 HIT) | Simple ~2,100 |
+| **합계** | | **Advanced ~1,080 · Simple ~3,700** |
 v1.1 은 읽기·쓰기마다 `list` 를 불러 매시 동기화만으로 월 ~2,160회(한도 초과)였다.
 
 ## GitHub Actions

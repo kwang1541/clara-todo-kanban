@@ -45,10 +45,24 @@ test('#5 클라라 실패 시 502 + 보드 본문', async () => {
 test('#5 복호화 실패는 명확한 500', async () => {
   const fb = fakeBlob(); const store = createStore(fb, { fetchImpl: fb.fetch });
   await store.mutate(() => {});
-  const { boardPath } = await import('../lib/board.mjs');
-  fb.files.get(boardPath()).data = Buffer.from('corrupted-data-not-aes-gcm-000000000000');
+  for (const [p, f] of fb.files) if (p.includes('/v/')) f.data = Buffer.from('corrupted-data-not-aes-gcm-000000000000');
   const r = await mk({ store })(req('board'));
   assert.equal(r.status, 500); assert.match((await r.json()).error, /BOARD_KEY/);
+});
+
+test('#2 변경 없는 동기화는 110분 안에서 저장 생략, 신규가 있으면 저장', async () => {
+  const fb = fakeBlob(); const store = createStore(fb, { fetchImpl: fb.fetch });
+  let list = [{ docId: 'message:1#0', title: 'A', from: '이한옥', date: '2026-10-20' }];
+  const h = mk({ store, fetcher: async () => list });
+  await h(req('sync', {}));
+  const puts = fb.ops.put;
+  const r = await h(req('sync', {}));
+  assert.equal(r.status, 200);
+  assert.equal(fb.ops.put, puts, '변경 없으면 put 없음');
+  list = [...list, { docId: 'message:2#0', title: 'B', date: '2026-10-21' }];
+  const j = await (await h(req('sync', {}))).json();
+  assert.ok(fb.ops.put > puts);
+  assert.ok(j.items['c:message:2']);
 });
 
 test('추가·편집·숨김·복원·영구삭제 라우트', async () => {

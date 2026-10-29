@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { createStore, DecryptError } from '../lib/board.mjs';
+import { createStore, DecryptError, SKIP } from '../lib/board.mjs';
 import * as M from '../lib/model.mjs';
 import { fetchTodos } from '../lib/clara.mjs';
 
@@ -31,7 +31,13 @@ export function makeHandler({ store = createStore(), fetcher = fetchTodos, env =
         const now = new Date().toISOString();
         const { board } = await store.mutate((b) => {
           if (err) Object.assign(b, M.recordSyncError(b, err.message || err, now, trigger));
-          else Object.assign(b, M.applySync(b, todos, now, trigger).board);
+          else {
+            const sig = (x) => JSON.stringify([x.items, x.purged], (k, v) => (k === 'lastSeenAt' ? undefined : v));
+            const before = sig(b); const prevSync = b.lastSync;
+            Object.assign(b, M.applySync(b, todos, now, trigger).board);
+            // 바뀐 것이 없고 마지막 기록이 110분 이내면 저장 생략 (Blob 쓰기 절약 #2)
+            if (sig(b) === before && prevSync && Date.parse(now) - Date.parse(prevSync) < 110 * 60e3) return SKIP;
+          }
         });
         return json(board, err ? 502 : 200);
       }
