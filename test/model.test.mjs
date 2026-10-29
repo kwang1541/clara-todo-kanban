@@ -12,8 +12,8 @@ test('keyOf: 문서ID(청크 제거) → url → 제목', () => {
   assert.equal(M.keyOf({ title: ' 주간보고 ' }), 't:주간보고');
 });
 
-test('#4 같은 제목 다른 문서는 카드 2장', () => {
-  const { board, added } = M.applySync(M.emptyBoard(), [todo('message:1#0', '주간업무보고'), todo('message:2#0', '주간업무보고')], NOW);
+test('#4 같은 제목이라도 날짜가 다른 문서는 카드 2장', () => {
+  const { board, added } = M.applySync(M.emptyBoard(), [todo('message:1#0', '주간업무보고'), todo('message:2#0', '주간업무보고', { date: '2026-10-27' })], NOW);
   assert.equal(added, 2);
   assert.equal(Object.keys(board.items).length, 2);
 });
@@ -90,4 +90,27 @@ test('동기화 실패 기록은 보드를 유지', () => {
   board = M.recordSyncError(board, 'MCP HTTP 500', NOW);
   assert.equal(board.lastError.message, 'MCP HTTP 500');
   assert.equal(Object.keys(board.items).length, 1);
+});
+
+test('#4 보완: 같은 제목·같은 날짜 중복 게시는 1장, 작성자 보강', () => {
+  const { board, added } = M.applySync(M.emptyBoard(), [todo('message:101#0', '수율 규칙', { from: '' }), todo('message:102#0', '수율 규칙')], NOW);
+  assert.equal(added, 1);
+  const arr = Object.values(board.items);
+  assert.equal(arr.length, 1);
+  assert.equal(arr[0].from, '이한옥');
+  assert.equal(board.lastSyncCount, 1);
+});
+
+test('#4 보완: 이미 생긴 중복 카드는 손대지 않았으면 정리, 진행 중 카드는 대표로 유지', () => {
+  let { board } = M.applySync(M.emptyBoard(), [todo('message:102#0', '수율 규칙')], NOW);
+  M.move(board, 'c:message:102', 'doing', NOW);
+  // v1.2 초기 배포에서 생긴 중복 카드 흉내
+  board.items['c:message:101'] = { id: 'c:message:101', title: '수율 규칙', date: '2026-10-20', column: 'todo', source: 'clara', createdAt: NOW, movedAt: NOW };
+  board.items['c:message:201'] = { id: 'c:message:201', title: '다른 일', date: '2026-10-20', column: 'todo', source: 'clara', createdAt: NOW, movedAt: NOW, local: { note: '메모' } };
+  ({ board } = M.applySync(board, [todo('message:101#0', '수율 규칙', { from: '' }), todo('message:102#0', '수율 규칙'), todo('message:201#0', '다른 일'), todo('message:202#0', '다른 일')], '2026-10-29T03:00:00.000Z'));
+  assert.equal(board.items['c:message:101'], undefined, '손대지 않은 중복은 정리');
+  assert.equal(board.items['c:message:102'].column, 'doing');
+  assert.ok(board.items['c:message:201'], '메모가 있는 카드는 대표로 유지');
+  assert.equal(board.items['c:message:202'], undefined);
+  assert.equal(Object.keys(board.items).length, 2);
 });
