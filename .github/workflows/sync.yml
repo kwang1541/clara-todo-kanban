@@ -1,8 +1,12 @@
 name: Hourly Clara Sync
 on:
   schedule:
-    - cron: "0 * * * *"
+    # KST 07~22시 매시 정각 (UTC 22,23,0~13시) — Blob Advanced Operations 절약 (#2)
+    - cron: "0 22,23,0-13 * * *"
   workflow_dispatch:
+permissions:
+  actions: write
+  contents: read
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -13,5 +17,11 @@ jobs:
             -H "x-board-key: ${{ secrets.BOARD_KEY }}" -H "Content-Type: application/json" \
             -d '{"trigger":"schedule"}')
           echo "HTTP $code"
-          node -e "const b=require('./out.json');console.log('lastSync',b.lastSync,'count',b.lastSyncCount,'error',b.lastError&&b.lastError.message)"
+          node -e "const b=require('./out.json');console.log('lastSync',b.lastSync,'count',b.lastSyncCount,'error',(b.lastError&&b.lastError.message)||b.error)"
           test "$code" = "200"
+      # 공개 저장소는 60일간 활동이 없으면 schedule 이 자동 비활성화됨 → 매 실행마다 재활성화 (#5)
+      - name: Keep schedule alive
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/sync.yml/enable" || true

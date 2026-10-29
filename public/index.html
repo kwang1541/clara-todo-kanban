@@ -5,95 +5,64 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>클라라 할일 칸반</title>
-<style>
-:root{--bg:#f5f6f8;--panel:#fff;--card:#fff;--text:#1d2129;--sub:#6b7280;--line:#e3e6ea;--acc:#2563eb;--todo:#64748b;--doing:#d97706;--done:#16a34a;--err:#dc2626}
-@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--panel:#171a21;--card:#1f232c;--text:#e6e8eb;--sub:#9aa3af;--line:#2a2f3a;--acc:#60a5fa;--todo:#94a3b8;--doing:#f59e0b;--done:#22c55e;--err:#f87171}}
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;background:var(--bg);color:var(--text)}
-header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:2}
-h1{font-size:18px;margin:0}.meta{font-size:12px;color:var(--sub)}.meta b{color:var(--text)}.err{color:var(--err)}
-button,input{font:inherit}button{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:8px;padding:6px 12px;cursor:pointer}button:hover{border-color:var(--acc)}
-button.primary{background:var(--acc);border-color:var(--acc);color:#fff}
-.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.tools input{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:8px;padding:6px 10px;min-width:220px}
-main{display:grid;grid-template-columns:repeat(3,minmax(260px,1fr));gap:16px;padding:16px 20px;overflow-x:auto}
-.col{background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;min-height:60vh}
-.col h2{font-size:14px;margin:0;padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
-.col h2 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
-.col[data-col=todo] .dot{background:var(--todo)}.col[data-col=doing] .dot{background:var(--doing)}.col[data-col=done] .dot{background:var(--done)}
-.cnt{font-size:12px;color:var(--sub);font-weight:400}
-.list{padding:10px;display:flex;flex-direction:column;gap:8px;flex:1}.list.over{outline:2px dashed var(--acc);outline-offset:-6px;border-radius:10px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:grab}
-.card.dragging{opacity:.4}.card .t{font-weight:600;font-size:14px;line-height:1.35}
-.card .m{font-size:12px;color:var(--sub);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap}
-.card .s{font-size:12px;color:var(--sub);margin-top:6px;display:none;white-space:pre-wrap}.card.open .s{display:block}
-.card .a{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}.card .a button{padding:3px 8px;font-size:12px}
-.card a{color:var(--acc);font-size:12px}.tag{border:1px solid var(--line);border-radius:6px;padding:0 5px}
-.card.new{border-left:3px solid var(--acc)}
-#login{max-width:360px;margin:15vh auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;display:none}
-#login input{width:100%;margin:10px 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)}
-@media (max-width:820px){main{grid-template-columns:1fr}}
-</style>
+<link rel="stylesheet" href="/app.css">
 </head>
-<body data-build="2026-10-28T07:31:31.218Z">
-<div id="login">
+<body data-build="dev">
+<div id="login" hidden>
   <h1>클라라 할일 칸반</h1>
   <p class="meta">접근 키를 입력하세요 (이 브라우저에만 저장).</p>
   <input id="key" type="password" autocomplete="current-password" placeholder="접근 키">
   <button class="primary" id="go">들어가기</button> <span id="lerr" class="err meta"></span>
 </div>
-<div id="app" style="display:none">
+<div id="app" hidden>
 <header>
-  <div>
+  <div class="head-l">
     <h1>클라라 할일 칸반 <span class="cnt">Todo → Doing → Done</span></h1>
     <div class="meta" id="status">불러오는 중…</div>
   </div>
   <div class="tools">
     <input id="newTitle" placeholder="할일 직접 추가 (Enter)">
     <button id="syncBtn" class="primary">지금 동기화</button>
+    <button id="hiddenBtn">숨김함</button>
+    <button id="archBtn">보관함</button>
+    <button id="statBtn">통계</button>
     <button id="logout" title="키 지우기">잠금</button>
   </div>
 </header>
+<div id="banner" class="banner" hidden></div>
+<div class="filters">
+  <input id="q" type="search" placeholder="검색 (제목·요청자·내용·메모)">
+  <select id="fFrom"><option value="">요청자 전체</option></select>
+  <select id="fSrc"><option value="">출처 전체</option><option value="clara">클라라</option><option value="manual">직접</option></select>
+  <select id="fPri"><option value="">우선순위 전체</option><option value="high">상</option><option value="mid">중</option><option value="low">하</option><option value="none">미지정</option></select>
+  <select id="sort"><option value="date">정렬: 요청일</option><option value="priority">정렬: 우선순위</option><option value="due">정렬: 마감일</option></select>
+  <span id="fCount" class="meta"></span>
+</div>
 <main>
   <section class="col" data-col="todo"><h2><span><span class="dot"></span>Todo</span><span class="cnt"></span></h2><div class="list"></div></section>
   <section class="col" data-col="doing"><h2><span><span class="dot"></span>Doing</span><span class="cnt"></span></h2><div class="list"></div></section>
   <section class="col" data-col="done"><h2><span><span class="dot"></span>Done</span><span class="cnt"></span></h2><div class="list"></div></section>
 </main>
 </div>
-<script>
-const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let KEY=localStorage.getItem('kanbanKey')||'';let board=null;
-const NEXT={todo:['doing'],doing:['todo','done'],done:['doing']};const LABEL={todo:'← Todo',doing:'Doing',done:'Done →'};
-async function api(path,body){const r=await fetch('/api/'+path,{method:body?'POST':'GET',headers:{'x-board-key':KEY,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
- if(r.status===401){showLogin('키가 맞지 않습니다');throw new Error('unauthorized')}const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
-function showLogin(msg){$('#app').style.display='none';$('#login').style.display='block';$('#lerr').textContent=msg||''}
-function fmt(iso){if(!iso)return '-';const d=new Date(iso);return d.toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}
-function render(){const items=Object.values(board.items||{}).filter(i=>i.column!=='hidden');
- const st=$('#status');st.innerHTML=`마지막 동기화 <b>${fmt(board.lastSync)}</b> · 클라라 ${board.lastSyncCount??0}건 · 매시 정각 자동`+(board.lastError?` · <span class="err">오류 ${fmt(board.lastError.at)}: ${esc(board.lastError.message)}</span>`:'');
- for(const col of ['todo','doing','done']){const sec=document.querySelector(`.col[data-col=${col}]`);const list=sec.querySelector('.list');
-  const arr=items.filter(i=>i.column===col).sort((a,b)=>col==='done'?(b.doneAt||'').localeCompare(a.doneAt||''):(b.date||'').localeCompare(a.date||''));
-  sec.querySelector('.cnt').textContent=arr.length+'건';
-  list.innerHTML=arr.map(i=>{const isNew=i.source==='clara'&&col==='todo'&&board.lastSync&&i.createdAt&&(Date.now()-new Date(i.createdAt))<36e5*2;
-   return `<div class="card${isNew?' new':''}" draggable="true" data-id="${esc(i.id)}">
-   <div class="t">${esc(i.title)}</div>
-   <div class="m"><span>${esc(i.date||'')}</span><span>${esc(i.from||'')}</span>${i.source==='manual'?'<span class="tag">직접</span>':'<span class="tag">클라라</span>'}${i.doneAt?`<span>완료 ${fmt(i.doneAt)}</span>`:''}</div>
-   <div class="s">${esc(i.map?('['+i.map+']\n'):'')}${esc(i.snippet||'')}</div>
-   <div class="a">${NEXT[col].map(n=>`<button data-mv="${n}">${LABEL[n]}</button>`).join('')}${i.url?`<a href="${esc(i.url)}" target="_blank" rel="noopener">클라라에서 열기</a>`:''}<button data-del title="숨기기">×</button></div></div>`}).join('');}
-}
-async function load(){board=await api('board');$('#login').style.display='none';$('#app').style.display='block';render()}
-async function move(id,column){board.items[id].column=column;render();board=await api('move',{id,column});render()}
-document.addEventListener('click',async e=>{const card=e.target.closest('.card');if(!card)return;const id=card.dataset.id;
- if(e.target.dataset.mv){await move(id,e.target.dataset.mv)}else if(e.target.hasAttribute('data-del')){if(confirm('이 카드를 숨길까요?')){board=await api('delete',{id});render()}}else if(e.target.tagName!=='A'){card.classList.toggle('open')}});
-document.addEventListener('dragstart',e=>{const c=e.target.closest?.('.card');if(c){e.dataTransfer.setData('text/plain',c.dataset.id);c.classList.add('dragging')}});
-document.addEventListener('dragend',e=>e.target.classList?.remove('dragging'));
-document.querySelectorAll('.list').forEach(l=>{l.addEventListener('dragover',e=>{e.preventDefault();l.classList.add('over')});l.addEventListener('dragleave',()=>l.classList.remove('over'));
- l.addEventListener('drop',async e=>{e.preventDefault();l.classList.remove('over');const id=e.dataTransfer.getData('text/plain');const col=l.parentElement.dataset.col;if(id&&board.items[id]&&board.items[id].column!==col)await move(id,col)})});
-$('#syncBtn').onclick=async()=>{const b=$('#syncBtn');b.disabled=true;b.textContent='동기화 중…';try{board=await api('sync',{});render()}finally{b.disabled=false;b.textContent='지금 동기화'}};
-$('#newTitle').addEventListener('keydown',async e=>{if(e.key==='Enter'&&e.target.value.trim()){board=await api('add',{title:e.target.value});e.target.value='';render()}});
-$('#go').onclick=()=>{KEY=$('#key').value.trim();localStorage.setItem('kanbanKey',KEY);load().catch(()=>{})};
-$('#key').addEventListener('keydown',e=>{if(e.key==='Enter')$('#go').click()});
-$('#logout').onclick=()=>{localStorage.removeItem('kanbanKey');KEY='';showLogin()};
-setInterval(()=>{if(KEY&&document.visibilityState==='visible')api('board').then(b=>{board=b;render()}).catch(()=>{})},5*60e3);
-if(KEY)load().catch(()=>{});else showLogin();
-</script>
+
+<dialog id="editDlg">
+  <form method="dialog" id="editForm">
+    <h2>카드 편집</h2>
+    <div class="meta" id="editTitleRO"></div>
+    <label id="titleWrap">제목<input name="title" maxlength="200"></label>
+    <label>우선순위<select name="priority"><option value="">미지정</option><option value="high">상</option><option value="mid">중</option><option value="low">하</option></select></label>
+    <label>마감일<input name="due" type="date"></label>
+    <label>메모<textarea name="note" rows="4" maxlength="1000"></textarea></label>
+    <div class="dlg-a"><button value="cancel" formnovalidate>취소</button><button value="save" class="primary">저장</button></div>
+  </form>
+</dialog>
+
+<dialog id="panel">
+  <div class="panel-h"><h2 id="panelTitle"></h2><button id="panelClose">닫기</button></div>
+  <div id="panelBody"></div>
+</dialog>
+
+<div id="toast" class="toast" hidden><span id="toastMsg"></span><button id="toastAct" hidden></button></div>
+<script src="/app.js" defer></script>
 </body>
 </html>

@@ -1,10 +1,17 @@
 {
   "name": "clara-todo-kanban",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "description": "클라라(ai.cands.kr) MCP 할일을 매시 동기화하는 Todo > Doing > Done 칸반 (Vercel)",
-  "scripts": { "build": "node scripts/build.mjs" },
-  "dependencies": { "@vercel/blob": "^1.1.1" },
-  "engines": { "node": ">=20" }
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.8.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
 }
